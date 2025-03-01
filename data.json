@@ -1,7 +1,7 @@
 {
     "teams" : {},
     "games": [
-        { "homeTeam": "Pho", "awayTeam": "Misg M", "date": "03/03/2025", "time": "20:30", "location": "BV", "homeTeamScore": "-", "awayTeamScore": "-" },
+        { "homeTeam": "Pho", "awayTeam": "Misg M", "date": "03/03/2025", "time": "20:30", "location": "BV", "homeTeamScore": 2, "awayTeamScore": 1 },
         { "homeTeam": "Cerv", "awayTeam": "G09", "date": "04/03/2025", "time": "20:30", "location": "BV", "homeTeamScore": "-", "awayTeamScore": "-" },
         { "homeTeam": "Vets", "awayTeam": "Cerv", "date": "10/03/2025", "time": "20:30", "location": "Gezer", "homeTeamScore": "-", "awayTeamScore": "-" },
         { "homeTeam": "Pho", "awayTeam": "Nomads", "date": "10/03/2025", "time": "20:30", "location": "BV", "homeTeamScore": "-", "awayTeamScore": "-" },
