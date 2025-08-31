@@ -17,46 +17,44 @@ standings = pd.DataFrame({
         "D": 0,
         "GP": 0,
         "W%": 0.0,
-        "RF": 0,
-        "RA": 0,
         "div": teams_df["div"]
     })
 standings["logo"] = teams_df["logo"]
 
-games_query = """
+played_query = """
 SELECT ht.name AS home_team, at.name AS away_team, g.home_score, g.away_score
 FROM games g
 JOIN teams ht ON g.home_team_id = ht.id
 JOIN teams at ON g.away_team_id = at.id
 WHERE g.played = TRUE
 """
-games_df = pd.read_sql_query(games_query, conn)
-standings.set_index("Team",inplace=True)
+games_df = pd.read_sql_query(played_query, conn)
 for _, row in games_df.iterrows():
-    home = row["home_team"]
-    away = row["away_team"]
-    hs = row["home_score"]
-    as_ = row["away_score"]
-    standings.at[home, "RF"] +=hs
-    standings.at[away, "RA"] +=as_
-    standings.at[home, "RA"] +=as_
-    standings.at[away, "RF"] +=hs
+    home_teams = games_df['home_team']
+    away_teams = games_df['away_team']
+    home_scores = games_df['home_score']
+    away_scores = games_df['away_score']
 
-    if hs > as_:
-        standings.at[home, "W"] +=1
-        standings.at[away, "L"] +=1
-    elif hs < as_:
-        standings.at[home, "L"] +=1
-        standings.at[away, "W"] +=1
-    else:
-        standings.at[home, "D"] +=1
-        standings.at[away, "D"] +=1
+    home_wins = home_scores > away_scores
+    away_wins = away_scores > home_scores
+    draws = home_scores == away_scores
+
+    standings.loc[standings['Team'].isin(home_teams[home_wins]), 'W'] += 1
+    standings.loc[standings['Team'].isin(home_teams[away_wins]), 'L'] += 1
+    standings.loc[standings['Team'].isin(home_teams[draws]), 'D'] += 1
+
+    standings.loc[standings['Team'].isin(away_teams[home_wins]), 'L'] += 1
+    standings.loc[standings['Team'].isin(away_teams[away_wins]), 'W'] += 1
+    standings.loc[standings['Team'].isin(away_teams[draws]), 'D'] += 1
 
 # Convert to DataFrame
 standings["GP"] = standings["W"] + standings["L"] + standings["D"]
 standings["W%"] = (standings["W"] / standings["GP"]).round(2).fillna(0)
-men_df = standings[standings["div"] == "Men"].sort_values(by=["W%", "W","GP"], ascending=False)
-women_df = standings[standings["div"] == "Women"].sort_values(by=["W%", "W","GP"], ascending=False)
+
+men_df = standings[standings["div"] == "Men"].sort_values(by=["W%", "W", "L","GP"], ascending=[False, False, True,False])
+women_df = standings[standings["div"] == "Women"].sort_values(by=["W%", "W", "L","GP"], ascending=[False, False, True,False])
+men_df["GB"] = ((men_df.iloc[0]["W"] + men_df.iloc[0]["D"] / 2) - (men_df["W"] + men_df["D"] / 2) + (men_df["L"] + men_df["D"] / 2) - (men_df.iloc[0]["L"] + men_df.iloc[0]["D"] / 2))/2
+women_df["GB"] = ((women_df.iloc[0]["W"] + women_df.iloc[0]["D"] / 2) - (women_df["W"] + women_df["D"] / 2) + (women_df["L"] + women_df["D"] / 2) - (women_df.iloc[0]["L"] + women_df.iloc[0]["D"] / 2))/2
 
 def display_standings(df, division_name):
     st.subheader(f"{division_name} Standings")
@@ -101,7 +99,6 @@ def display_standings(df, division_name):
     """, unsafe_allow_html=True)
     
     with st.container():        
-        # Table Header
         st.markdown("""
             <div class="table-header">
                 <span class="header-item">Rank</span>
@@ -110,20 +107,18 @@ def display_standings(df, division_name):
                 <span class="header-item">L</span>
                 <span class="header-item">D</span>
                 <span class="header-item">W%</span>
-                <span class="header-item">RF</span>
-                <span class="header-item">RA</span>
+                <span class="header-item">GB</span>
             </div>
         """, unsafe_allow_html=True)
         
         rank = 1
-        for team_name, row in df.iterrows():
+        for _, row in df.iterrows():
             logo = row["logo"]
             wins = row["W"]
             losses = row["L"]
             draws = row["D"]
             win_percent = row["W%"]
-            runs_for = row["RF"]
-            runs_against = row["RA"]
+            games_behind = row["GB"]
             
             # Table Row for each team
             st.markdown(f"""
@@ -134,14 +129,12 @@ def display_standings(df, division_name):
                     <span class="row-item">{losses}</span>
                     <span class="row-item">{draws}</span>
                     <span class="row-item">{win_percent}</span>
-                    <span class="row-item">{runs_for}</span>
-                    <span class="row-item">{runs_against}</span>
+                    <span class="row-item">{games_behind}</span>
                 </div>
             """, unsafe_allow_html=True)
             rank += 1
             
         st.markdown('</div>', unsafe_allow_html=True)
-
 
 st.subheader("Stangings")
 tab1, tab2 = st.tabs(["Men’s Division", "Women’s Division"])
@@ -151,8 +144,6 @@ with tab1:
 
 with tab2:
     display_standings(women_df, "Women’s Division")
-
-
 
 games_query = """
 SELECT ht.name AS home_team, at.name AS away_team, g.home_score, g.away_score,
@@ -223,9 +214,9 @@ def display_games_row_dynamic(played_games_df, scheduled_games_df):
         card_class = "played-game" if is_played else "scheduled-game"
         game_info = ""
         if is_played:
-            game_info = f"Final: {int(row['home_score'])} - {int(row['away_score'])}"
+            game_info = f"Final:<br>{int(row['home_score'])} - {int(row['away_score'])}"
         else:
-            game_info = pd.to_datetime(row['date']).strftime("%b %d, %I:%M %p")
+            game_info = f"{pd.to_datetime(row['date']).strftime('%b %d')}<br>{pd.to_datetime(row['date']).strftime('%I:%M %p')}"
         with(cols[i]):    
             st.markdown(f"""
                 <div class="game-card {card_class}">

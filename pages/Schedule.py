@@ -5,6 +5,9 @@ from datetime import datetime
 
 # 📡 Connect to DB
 conn = sqlite3.connect("isasoftball.db")
+
+st.title("📅 Schedule")
+
 games_query = """
 SELECT g.id, ht.name AS home_team, at.name AS away_team,
     date, location, played, away_score, home_score, g.div AS Division,
@@ -50,59 +53,74 @@ def filter_schedule(df, teams=None, divisions=None, venues=None, played_status=N
         df = df[df["played"].isin(status_filter)]
     return df
 
-# 🧾 Display games
+def display_games(games_df):
+    st.markdown("""
+        <style>
+        .game-card {
+            border-radius: 10px;
+            padding: 10px;
+            text-align: center;
+            box-shadow: 0 4px 4px rgba(0,0,0,0.1);
+            margin-bottom:15px;
+        }
+        .played-game {
+            background-color: #e8f5e9; /* Light green */
+        }
+        .scheduled-game {
+            background-color: #e3f2fd; /* Light blue */
+        }
+        .game-teams {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        .game-logo {
+            width: 50px;
+            height: 50px;
+            border-radius: 5px;
+        }
+        .game-score-info {
+            font-size: 14px;
+            color: #555;
+            margin: 10px 0;
+            line-height: 1.4;
+        }
+        .game-details {
+            font-size: 12px;
+            color: #888;
+        }
+        </style>
+    """, unsafe_allow_html=True)
 
-def display_games(df):
-    st.title("📅 Game Schedule & Results")
-    st.divider()
-
-    # Create a 2-column grid to display games side-by-side
-    game_cols = st.columns(2)
     
-    for index, row in df.iterrows():
-        # Cycle through the columns for each game
-        with game_cols[index % 2]:
-            # Use a container to visually separate each game card
-            with st.container(border=True):
-                home_score_style = ""
-                away_score_style = ""
-                status_text = ""
-                
-                # Conditional styling logic remains the same
-                if row['played']:
-                    if row['home_score'] > row['away_score']:
-                        home_score_style = "color: green; font-weight: bold; text-align: center;"
-                        away_score_style = "color: #888; text-align: center;"
-                        status_text = "Final"
-                    elif row['away_score'] > row['home_score']:
-                        away_score_style = "color: green; font-weight: bold; text-align: center;"
-                        home_score_style = "color: #888; text-align: center;"
-                        status_text = "Final"
-                    else:
-                        home_score_style = "font-weight: bold; text-align: center;"
-                        away_score_style = "font-weight: bold; text-align: center;"
-                        status_text = "Tie"
-                else:
-                    status_text = "Upcoming"
-                    home_score_style = "color: #888; text-align: center;"
-                    away_score_style = "color: #888; text-align: center;"
+    # Create a number of columns equal to the number of games
+    game_cols= st.columns(3)
+    for i, row in games_df.iterrows():
+        is_played = row.get('played')
+        card_class = "played-game" if is_played else "scheduled-game"
+        game_info = ""
+        if is_played:
+            game_info = f"Final:<br>{int(row['home_score'])} - {int(row['away_score'])}"
+        else:
+            game_info = f"{pd.to_datetime(row['date']).strftime('%b %d')}<br>{pd.to_datetime(row['date']).strftime('%I:%M %p')}"
+        with(game_cols[i% 3]):    
+            st.markdown(f"""
+                <div class="game-card {card_class}">
+                    <div class="game-teams">
+                        <img src="{row['home_logo']}" class="game-logo">
+                        <span>vs</span>
+                        <img src="{row['away_logo']}" class="game-logo">
+                    </div>
+                    <div class="game-score-info">
+                        {game_info}
+                    </div>
+                    <div class="game-details">
+                        <span>{row['location']}</span><br>
+                    </div>
+                </div>
+            """,unsafe_allow_html=True)
 
-                # Internal layout for a single game card
-                game_card_cols = st.columns([1, 2, 1])
-                
-                with game_card_cols[0]:
-                    st.image(row['home_logo'],width=80)
-                    st.markdown(f"<h3 style='{home_score_style}'>{int(row['home_score']) if row['played'] else '-'}</h3>", unsafe_allow_html=True)
-
-                with game_card_cols[1]:
-                    st.markdown(f"<p style='text-align: center;'>{status_text}</p>", unsafe_allow_html=True)
-                    st.markdown(f"<p style='text-align: center; color: #888;'>{row['date'].strftime('%d/%m')}</p>", unsafe_allow_html=True)
-                    st.markdown(f"<p style='text-align: center; color: #888;'>{row['date'].strftime('%H:%M')}</p>", unsafe_allow_html=True)
-                
-                with game_card_cols[2]:
-                    st.image(row['away_logo'],width=80)
-                    st.markdown(f"<h3 style='{away_score_style}'>{int(row['away_score']) if row['played'] else '-'}</h3>", unsafe_allow_html=True)
-# 🧮 Apply filters or show all
 if st.button("Filter", use_container_width=True):
     filtered_df = filter_schedule(
         games_df,
@@ -110,7 +128,7 @@ if st.button("Filter", use_container_width=True):
         divisions=selected_divisions,
         venues=selected_venues,
         played_status=selected_status
-    )
+    ).reset_index(drop=True)
     display_games(filtered_df)
 else:
     display_games(games_df)
