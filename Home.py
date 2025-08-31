@@ -92,10 +92,6 @@ def display_standings(df, division_name):
             flex: 0 0 70px; /* Logo column */
             text-align: center;
         }
-        .header-item:nth-child(3), .row-item:nth-child(3) {
-            flex: 2; /* Team Name column */
-            text-align: left;
-        }
         .team-logo {
             width: 20px;
             height: 20px;
@@ -109,6 +105,7 @@ def display_standings(df, division_name):
         st.markdown("""
             <div class="table-header">
                 <span class="header-item">Rank</span>
+                <span class="header-item"></span>
                 <span class="header-item">W</span>
                 <span class="header-item">L</span>
                 <span class="header-item">D</span>
