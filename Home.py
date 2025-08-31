@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 
+st.logo("https://raw.githubusercontent.com/gil3011/ISATable/refs/heads/main/logos/with%20white%20softball.png")
 # 📡 Connect to your SQLite database
 conn = sqlite3.connect("isasoftball.db")
 
