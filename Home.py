@@ -113,6 +113,7 @@ def display_standings(df, division_name):
                 <span class="header-item">Team</span>
                 <span class="header-item">W</span>
                 <span class="header-item">L</span>
+                <span class="header-item">D</span>
                 <span class="header-item">W%</span>
                 <span class="header-item">RF</span>
                 <span class="header-item">RA</span>
@@ -124,6 +125,7 @@ def display_standings(df, division_name):
             logo = row["logo"]
             wins = row["W"]
             losses = row["L"]
+            draws = row["D"]
             win_percent = row["W%"]
             runs_for = row["RF"]
             runs_against = row["RA"]
@@ -133,9 +135,9 @@ def display_standings(df, division_name):
                 <div class="table-row">
                     <span class="row-item">{rank}</span>
                     <span class="row-item"><img src="{logo}" class="team-logo"></span>
-                    <span class="row-item">{team_name}</span>
                     <span class="row-item">{wins}</span>
                     <span class="row-item">{losses}</span>
+                    <span class="row-item">{draws}</span>
                     <span class="row-item">{win_percent}</span>
                     <span class="row-item">{runs_for}</span>
                     <span class="row-item">{runs_against}</span>
