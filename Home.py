@@ -109,7 +109,6 @@ def display_standings(df, division_name):
         st.markdown("""
             <div class="table-header">
                 <span class="header-item">Rank</span>
-                <span class="header-item"></span>
                 <span class="header-item">W</span>
                 <span class="header-item">L</span>
                 <span class="header-item">D</span>
