@@ -3,6 +3,8 @@ import pandas as pd
 import sqlite3
 from datetime import datetime
 
+st.set_page_config(page_title="Full Schedule", page_icon="📅", layout="wide")
+
 # 📡 Connect to DB
 conn = sqlite3.connect("isasoftball.db")
 

@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import sqlite3
-
+st.set_page_config(page_title="Israel Softball", page_icon="🏆", layout="wide")
 st.logo("https://raw.githubusercontent.com/gil3011/ISATable/refs/heads/main/logos/with%20white%20softball.png")
 # 📡 Connect to your SQLite database
 conn = sqlite3.connect("isasoftball.db")
@@ -83,17 +83,14 @@ def display_standings(df, division_name):
             flex: 1;
             text-align: center;
         }
-        .header-item:first-child, .row-item:first-child {
-            flex: 0 0 50px; /* Rank column */
-            text-align: left;
-        }
+
         .header-item:nth-child(2), .row-item:nth-child(2) {
             flex: 0 0 70px; /* Logo column */
             text-align: center;
         }
         .team-logo {
-            width: 20px;
-            height: 20px;
+            width: 40px;
+            height: 40px;
             border-radius: 5px;
         }
         </style>
@@ -103,7 +100,7 @@ def display_standings(df, division_name):
         st.markdown("""
             <div class="table-header">
                 <span class="header-item">Rank</span>
-                <span class="header-item"></span>
+                <span class="header-item">Team</span>
                 <span class="header-item">W</span>
                 <span class="header-item">L</span>
                 <span class="header-item">D</span>
@@ -174,7 +171,7 @@ def display_games_row_dynamic(played_games_df, scheduled_games_df):
         .game-teams {
             display: flex;
             align-items: center;
-            justify-content: center;
+            justify-content: space-evenly;
             gap: 10px;
         }
         .game-logo {

@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 from datetime import datetime
-
+st.set_page_config(page_title="Games Update", page_icon="⚾", layout="wide")
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
