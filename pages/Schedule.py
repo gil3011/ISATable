@@ -55,71 +55,54 @@ def filter_schedule(df, teams=None, divisions=None, venues=None, played_status=N
 
 def display_games(games_df):
     st.markdown("""
-        <style>
-        .game-card {
-            border-radius: 10px;
-            padding: 10px;
-            text-align: center;
-            box-shadow: 0 4px 4px rgba(0,0,0,0.1);
-            margin-bottom:15px;
-        }
-        .played-game {
-            background-color: #e8f5e9; /* Light green */
-        }
-        .scheduled-game {
-            background-color: #e3f2fd; /* Light blue */
-        }
-        .game-teams {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-        }
-        .game-logo {
-            width: 50px;
-            height: 50px;
-            border-radius: 5px;
-        }
-        .game-score-info {
-            font-size: 14px;
-            color: #555;
-            margin: 10px 0;
-            line-height: 1.4;
-        }
-        .game-details {
-            font-size: 12px;
-            color: #888;
-        }
-        </style>
+    <style>
+    .game-card {
+        border-radius: 10px;
+        padding: 10px;
+        text-align: center;
+        box-shadow: 0 4px 4px rgba(0,0,0,0.1);
+        margin-bottom: 15px;
+    }
+    .played-game {
+        background-color: #e8f5e9;
+    }
+    .scheduled-game {
+        background-color: #e3f2fd;
+    }
+    .game-teams {
+        display: flex;
+        align-items: center;
+        justify-content: space-around;
+        gap: 10px;
+    }
+    .game-logo {
+        width: 50px;
+        height: 50px;
+        border-radius: 5px;
+    }
+    .game-score-info {
+        line-height: 1.4;
+    }
+    </style>
     """, unsafe_allow_html=True)
-
-    
-    # Create a number of columns equal to the number of games
-    game_cols= st.columns(3)
-    for i, row in games_df.iterrows():
+    for _, row in games_df.iterrows():
         is_played = row.get('played')
         card_class = "played-game" if is_played else "scheduled-game"
+        
         game_info = ""
         if is_played:
             game_info = f"Final:<br>{int(row['home_score'])} - {int(row['away_score'])}"
         else:
-            game_info = f"{pd.to_datetime(row['date']).strftime('%b %d')}<br>{pd.to_datetime(row['date']).strftime('%I:%M %p')}"
-        with(game_cols[i% 3]):    
-            st.markdown(f"""
-                <div class="game-card {card_class}">
-                    <div class="game-teams">
-                        <img src="{row['home_logo']}" class="game-logo">
-                        <span>vs</span>
-                        <img src="{row['away_logo']}" class="game-logo">
-                    </div>
-                    <div class="game-score-info">
-                        {game_info}
-                    </div>
-                    <div class="game-details">
-                        <span>{row['location']}</span><br>
-                    </div>
-                </div>
-            """,unsafe_allow_html=True)
+            game_info = f"{pd.to_datetime(row['date']).strftime('%b %d')}<br>{pd.to_datetime(row['date']).strftime('%I:%M %p')}<br>{row['location']}"
+        st.markdown(f"""
+        <div class="game-card {card_class}">
+            <div class="game-teams">
+                <img src="{row['home_logo']}" class="game-logo">
+                <div class="game-score-info">{game_info}</div>
+                <img src="{row['away_logo']}" class="game-logo">
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
 if st.button("Filter", use_container_width=True):
     filtered_df = filter_schedule(
