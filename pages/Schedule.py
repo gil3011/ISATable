@@ -5,8 +5,12 @@ from sqlalchemy import create_engine
 st.set_page_config(page_title="Full Schedule", page_icon="🪐", layout="wide")
 
 # 📡 Connect to DB
+username = st.secrets["database"]["username"]
+password = st.secrets["database"]["password"]
+host = st.secrets["database"]["host"]
+name = st.secrets["database"]["name"]
 engine = create_engine(
-    "mysql+pymysql://admin:admin123@isatable.cl2wgkk2idms.eu-north-1.rds.amazonaws.com/isa_table_2025"
+    f"mysql+pymysql://{username}:{password}@/{name}"
 )
 st.title("📅 Schedule")
 

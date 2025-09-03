@@ -11,15 +11,19 @@ if not st.session_state.authenticated:
     st.title("🔒 Login Required")
     password = st.text_input("Enter password:", type="password")
     if st.button("Login"):
-        if password == "ISA2025fall":  
+        if password == st.secrets["passwords"]["login"]:  
             st.session_state.authenticated = True
             st.rerun()
         else:
             st.error("❌ Incorrect password")
     st.stop()
 
+username = st.secrets["database"]["username"]
+password = st.secrets["database"]["password"]
+host = st.secrets["database"]["host"]
+name = st.secrets["database"]["name"]
 engine = create_engine(
-    "mysql+pymysql://admin:admin123@isatable.cl2wgkk2idms.eu-north-1.rds.amazonaws.com/isa_table_2025"
+    f"mysql+pymysql://{username}:{password}@/{name}"
 )
 
 

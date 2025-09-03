@@ -7,8 +7,12 @@ st.set_page_config(page_title="Israel Softball", page_icon="🏆", layout="wide"
 st.logo("https://raw.githubusercontent.com/gil3011/ISATable/refs/heads/main/logos/with%20white%20softball.png")
 
 # SQLAlchemy connection string
+username = st.secrets["database"]["username"]
+password = st.secrets["database"]["password"]
+host = st.secrets["database"]["host"]
+name = st.secrets["database"]["name"]
 engine = create_engine(
-    "mysql+pymysql://admin:admin123@isatable.cl2wgkk2idms.eu-north-1.rds.amazonaws.com/isa_table_2025"
+    f"mysql+pymysql://{username}:{password}@/{name}"
 )
 
 
