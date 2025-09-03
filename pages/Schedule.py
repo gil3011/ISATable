@@ -10,7 +10,7 @@ password = st.secrets["database"]["password"]
 host = st.secrets["database"]["host"]
 name = st.secrets["database"]["name"]
 engine = create_engine(
-    f"mysql+pymysql://{username}:{password}@/{name}"
+    f"mysql+pymysql://{username}:{password}@{host}/{name}"
 )
 st.title("📅 Schedule")
 
