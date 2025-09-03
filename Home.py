@@ -179,8 +179,8 @@ def display_games_row_dynamic(played_games_df, scheduled_games_df):
             gap: 10px;
         }
         .game-logo {
-            width: 30px;
-            height: 30px;
+            width: 40px;
+            height: 40px;
             border-radius: 5px;
             border: 1px solid #eee;
         }
@@ -224,15 +224,17 @@ def display_games_row_dynamic(played_games_df, scheduled_games_df):
                 <div class="game-card {card_class}">
                     <div class="game-teams">
                         <img src="{row['home_logo']}" class="game-logo">
-                        <span>vs</span>
+                        <div>   
+                            <div class="game-score-info">
+                                {game_info}
+                            </div>
+                            <div class="game-details">
+                                <span>{row['location']}</span><br>
+                            </div>
+                        </div>
                         <img src="{row['away_logo']}" class="game-logo">
                     </div>
-                    <div class="game-score-info">
-                        {game_info}
-                    </div>
-                    <div class="game-details">
-                        <span>{row['location']}</span><br>
-                    </div>
+
                 </div>
             """,unsafe_allow_html=True)
 
