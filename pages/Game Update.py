@@ -1,7 +1,8 @@
 import streamlit as st
 import pandas as pd
-import sqlite3
 from datetime import datetime
+from sqlalchemy import create_engine,text
+
 st.set_page_config(page_title="Games Update", page_icon="⚾", layout="wide")
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
@@ -17,8 +18,10 @@ if not st.session_state.authenticated:
             st.error("❌ Incorrect password")
     st.stop()
 
-conn = sqlite3.connect("isasoftball.db")
-cursor = conn.cursor()
+engine = create_engine(
+    "mysql+pymysql://admin:admin123@isatable.cl2wgkk2idms.eu-north-1.rds.amazonaws.com/isa_table_2025"
+)
+
 
 st.title("⚾ Update Game Results")
 
@@ -30,7 +33,7 @@ JOIN teams ht ON g.home_team_id = ht.id
 JOIN teams at ON g.away_team_id = at.id
 ORDER BY g.date
 """
-games_df = pd.read_sql_query(games_query, conn)
+games_df = pd.read_sql_query(games_query, engine)
 games_df["date"] = pd.to_datetime(games_df["date"],format='mixed')
 
 # 🎯 Select a game
@@ -45,26 +48,44 @@ venue = st.text_input("Venue:",value=selected_game["location"])
 played = st.checkbox("played",value=selected_game['played'])
 home_score = st.number_input(f"{selected_game['home_team']} score", min_value=0, step=1,value=0 if pd.isna(selected_game['home_score'])  else int(selected_game['home_score']))
 away_score = st.number_input(f"{selected_game['away_team']} score", min_value=0, step=1,value=0 if pd.isna(selected_game['away_score']) else int(selected_game['away_score']))
+import numpy as np
+
+# Convert to native Python types
+
+home_score = int(home_score) if isinstance(home_score, (np.integer, np.int64)) else home_score
+away_score = int(away_score) if isinstance(away_score, (np.integer, np.int64)) else away_score
+game_id = int(selected_game["id"]) if isinstance(selected_game["id"], (np.integer, np.int64)) else selected_game["id"]
+
+
 # ✅ Submit button
 if st.button("Submit"):
-    combined_date = datetime(date.year, date.month, date.day,time.hour, time.minute)
+    combined_date = datetime(date.year, date.month, date.day, time.hour, time.minute)
+    
     if not played:
-        home_score=0
-        away_score=0
-    update_query = f"""
-    UPDATE games
-    SET home_score = {home_score}, away_score = {away_score}, played = ?, date = ? , location = ?
-    WHERE id = {selected_game["id"]}
-    """
+        home_score = 0
+        away_score = 0
+
+    update_query = text("""
+        UPDATE games
+        SET home_score = :home_score,
+            away_score = :away_score,
+            played = :played,
+            date = :date,
+            location = :location
+        WHERE id = :game_id
+    """)
+
     try:
-        cursor.execute(update_query,[played,combined_date, venue])
-        conn.commit()
+        with engine.connect() as connection:
+            connection.execute(update_query, {
+                "home_score": home_score,
+                "away_score": away_score,
+                "played": played,
+                "date": combined_date,
+                "location": venue,
+                "game_id": game_id
+            })
         st.success("🎉 Game result updated successfully!")
 
-
-        
-    except sqlite3.Error as e:
+    except Exception as e:
         st.error(f"❌ An error occurred: {e}")
-
-
-conn.close()

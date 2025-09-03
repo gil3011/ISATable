@@ -1,16 +1,22 @@
 import streamlit as st
 import pandas as pd
-import sqlite3
+from sqlalchemy import create_engine
+
+# Streamlit setup
 st.set_page_config(page_title="Israel Softball", page_icon="🏆", layout="wide")
 st.logo("https://raw.githubusercontent.com/gil3011/ISATable/refs/heads/main/logos/with%20white%20softball.png")
-# 📡 Connect to your SQLite database
-conn = sqlite3.connect("isasoftball.db")
+
+# SQLAlchemy connection string
+engine = create_engine(
+    "mysql+pymysql://admin:admin123@isatable.cl2wgkk2idms.eu-north-1.rds.amazonaws.com/isa_table_2025"
+)
+
 
 st.title("🏆 ISA Fall League Standings 2025")
 
 # 🧠 Load all teams with division info
-teams_query = "SELECT id, name, div, logo FROM teams"
-teams_df = pd.read_sql_query(teams_query, conn)
+teams_query = "SELECT id, name, division, logo FROM teams"
+teams_df = pd.read_sql_query(teams_query, engine)
 standings = pd.DataFrame({
         "Team": teams_df["name"],
         "W": 0,
@@ -18,7 +24,7 @@ standings = pd.DataFrame({
         "D": 0,
         "GP": 0,
         "W%": 0.0,
-        "div": teams_df["div"]
+        "division": teams_df["division"]
     })
 standings["logo"] = teams_df["logo"]
 
@@ -29,31 +35,25 @@ JOIN teams ht ON g.home_team_id = ht.id
 JOIN teams at ON g.away_team_id = at.id
 WHERE g.played = TRUE
 """
-games_df = pd.read_sql_query(played_query, conn)
-for _, row in games_df.iterrows():
-    home_teams = games_df['home_team']
-    away_teams = games_df['away_team']
-    home_scores = games_df['home_score']
-    away_scores = games_df['away_score']
+games_df = pd.read_sql_query(played_query, engine)
+home_wins = games_df['home_score'] > games_df['away_score']
+away_wins = games_df['away_score'] > games_df['home_score']
+draws = games_df['home_score'] == games_df['away_score']
 
-    home_wins = home_scores > away_scores
-    away_wins = away_scores > home_scores
-    draws = home_scores == away_scores
+standings.loc[standings['Team'].isin(games_df['home_team'][home_wins]), 'W'] += 1
+standings.loc[standings['Team'].isin(games_df['home_team'][away_wins]), 'L'] += 1
+standings.loc[standings['Team'].isin(games_df['home_team'][draws]), 'D'] += 1
 
-    standings.loc[standings['Team'].isin(home_teams[home_wins]), 'W'] += 1
-    standings.loc[standings['Team'].isin(home_teams[away_wins]), 'L'] += 1
-    standings.loc[standings['Team'].isin(home_teams[draws]), 'D'] += 1
-
-    standings.loc[standings['Team'].isin(away_teams[home_wins]), 'L'] += 1
-    standings.loc[standings['Team'].isin(away_teams[away_wins]), 'W'] += 1
-    standings.loc[standings['Team'].isin(away_teams[draws]), 'D'] += 1
+standings.loc[standings['Team'].isin(games_df['away_team'][home_wins]), 'L'] += 1
+standings.loc[standings['Team'].isin(games_df['away_team'][away_wins]), 'W'] += 1
+standings.loc[standings['Team'].isin(games_df['away_team'][draws]), 'D'] += 1
 
 # Convert to DataFrame
 standings["GP"] = standings["W"] + standings["L"] + standings["D"]
 standings["W%"] = (standings["W"] / standings["GP"]).round(2).fillna(0)
 
-men_df = standings[standings["div"] == "Men"].sort_values(by=["W%", "W", "L","GP"], ascending=[False, False, True,False])
-women_df = standings[standings["div"] == "Women"].sort_values(by=["W%", "W", "L","GP"], ascending=[False, False, True,False])
+men_df = standings[standings["division"] == "Men"].sort_values(by=["W%", "W", "L","GP"], ascending=[False, False, True,False])
+women_df = standings[standings["division"] == "Women"].sort_values(by=["W%", "W", "L","GP"], ascending=[False, False, True,False])
 men_df["GB"] = ((men_df.iloc[0]["W"] + men_df.iloc[0]["D"] / 2) - (men_df["W"] + men_df["D"] / 2) + (men_df["L"] + men_df["D"] / 2) - (men_df.iloc[0]["L"] + men_df.iloc[0]["D"] / 2))/2
 women_df["GB"] = ((women_df.iloc[0]["W"] + women_df.iloc[0]["D"] / 2) - (women_df["W"] + women_df["D"] / 2) + (women_df["L"] + women_df["D"] / 2) - (women_df.iloc[0]["L"] + women_df.iloc[0]["D"] / 2))/2
 
@@ -145,7 +145,7 @@ with tab2:
 
 games_query = """
 SELECT ht.name AS home_team, at.name AS away_team, g.home_score, g.away_score,
-    at.logo AS away_logo, ht.logo AS home_logo, g.date, g.div, g.location, g.played
+    at.logo AS away_logo, ht.logo AS home_logo, g.date, g.division, g.location, g.played
 FROM games g
 JOIN teams ht ON g.home_team_id = ht.id
 JOIN teams at ON g.away_team_id = at.id
@@ -236,7 +236,7 @@ def display_games_row_dynamic(played_games_df, scheduled_games_df):
     
     st.page_link(label="Full Schedule",page="pages/Schedule.py")
 
-games = pd.read_sql_query(games_query, conn)
+games = pd.read_sql_query(games_query, engine)
 played_games_df = games[games["played"]==True].sort_values(by='date')
 scheduled_games_df = games[games["played"]==False].sort_values(by='date')
 display_games_row_dynamic(played_games_df, scheduled_games_df)

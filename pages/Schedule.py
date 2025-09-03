@@ -1,25 +1,25 @@
 import streamlit as st
 import pandas as pd
-import sqlite3
-from datetime import datetime
+from sqlalchemy import create_engine
 
 st.set_page_config(page_title="Full Schedule", page_icon="🪐", layout="wide")
 
 # 📡 Connect to DB
-conn = sqlite3.connect("isasoftball.db")
-
+engine = create_engine(
+    "mysql+pymysql://admin:admin123@isatable.cl2wgkk2idms.eu-north-1.rds.amazonaws.com/isa_table_2025"
+)
 st.title("📅 Schedule")
 
 games_query = """
 SELECT g.id, ht.name AS home_team, at.name AS away_team,
-    date, location, played, away_score, home_score, g.div AS Division,
+    date, location, played, away_score, home_score, g.division AS Division,
     at.logo AS away_logo, ht.logo AS home_logo
 FROM games g
 JOIN teams ht ON g.home_team_id = ht.id
 JOIN teams at ON g.away_team_id = at.id
 ORDER BY g.date
 """
-games_df = pd.read_sql_query(games_query, conn)
+games_df = pd.read_sql_query(games_query, engine)
 games_df["date"] = pd.to_datetime(games_df["date"], format='mixed')
 
 # 🧠 Unique filter options
