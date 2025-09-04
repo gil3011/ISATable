@@ -80,7 +80,7 @@ if st.button("Submit"):
     """)
 
     try:
-        with engine.connect() as connection:
+        with engine.begin() as connection:  # This auto-commits at the end
             connection.execute(update_query, {
                 "home_score": home_score,
                 "away_score": away_score,
@@ -90,6 +90,5 @@ if st.button("Submit"):
                 "game_id": game_id
             })
         st.success("🎉 Game result updated successfully!")
-
     except Exception as e:
         st.error(f"❌ An error occurred: {e}")
