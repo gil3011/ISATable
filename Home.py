@@ -31,6 +31,7 @@ standings = pd.DataFrame({
         "division": teams_df["division"]
     })
 standings["logo"] = teams_df["logo"]
+standings.set_index("Team", inplace=True)
 
 played_query = """
 SELECT ht.name AS home_team, at.name AS away_team, g.home_score, g.away_score
@@ -40,17 +41,17 @@ JOIN teams at ON g.away_team_id = at.id
 WHERE g.played = TRUE
 """
 games_df = pd.read_sql_query(played_query, engine)
-home_wins = games_df['home_score'] > games_df['away_score']
-away_wins = games_df['away_score'] > games_df['home_score']
-draws = games_df['home_score'] == games_df['away_score']
+for _, row in games_df.iterrows():
+    if row['home_score'] > row['away_score']:
+        standings.loc[row['home_team'], 'W'] += 1
+        standings.loc[row['away_team'], 'L'] += 1
+    elif row['away_score'] > row['home_score']:
+        standings.loc[row['away_team'], 'W'] += 1
+        standings.loc[row['home_team'], 'L'] += 1
+    else:
+        standings.loc[row['home_team'], 'D'] += 1
+        standings.loc[row['away_team'], 'D'] += 1        
 
-standings.loc[standings['Team'].isin(games_df['home_team'][home_wins]), 'W'] += 1
-standings.loc[standings['Team'].isin(games_df['home_team'][away_wins]), 'L'] += 1
-standings.loc[standings['Team'].isin(games_df['home_team'][draws]), 'D'] += 1
-
-standings.loc[standings['Team'].isin(games_df['away_team'][home_wins]), 'L'] += 1
-standings.loc[standings['Team'].isin(games_df['away_team'][away_wins]), 'W'] += 1
-standings.loc[standings['Team'].isin(games_df['away_team'][draws]), 'D'] += 1
 
 # Convert to DataFrame
 standings["GP"] = standings["W"] + standings["L"] + standings["D"]
