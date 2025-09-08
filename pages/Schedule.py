@@ -26,6 +26,7 @@ ORDER BY g.date
 games_df = pd.read_sql_query(games_query, engine)
 games_df["date"] = pd.to_datetime(games_df["date"], format='mixed')
 
+
 # 🧠 Unique filter options
 teams = sorted(games_df["home_team"].unique())
 divisions = sorted(games_df["Division"].unique())
@@ -111,13 +112,18 @@ def display_games(games_df):
         """, unsafe_allow_html=True)
 
 if st.button("Filter", use_container_width=True):
-    filtered_df = filter_schedule(
+    st.session_state["games"] = filter_schedule(
         games_df,
         teams=selected_teams,
         divisions=selected_divisions,
         venues=selected_venues,
         played_status=selected_status
     ).reset_index(drop=True)
-    display_games(filtered_df)
-else:
+    st.rerun()
+if "games" not in st.session_state:
     display_games(games_df)
+else:
+    if  st.session_state["games"].empty:
+        st.write("No games")
+    else:
+        display_games(st.session_state["games"])
