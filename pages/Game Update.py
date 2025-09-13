@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime
+from datetime import datetime , time
 from sqlalchemy import create_engine,text
 import numpy as np
 
@@ -32,7 +32,7 @@ st.title("⚾ Update Game Results")
 
 # 🔍 Load unplayed games
 games_query = """
-SELECT g.id, ht.name AS home_team, at.name AS away_team, date, location, played, away_score, home_score
+SELECT g.id, ht.name AS home_team, at.name AS away_team, date, location, played, away_score, home_score , g.division
 FROM games g
 JOIN teams ht ON g.home_team_id = ht.id
 JOIN teams at ON g.away_team_id = at.id
@@ -43,8 +43,11 @@ games_df["date"] = pd.to_datetime(games_df["date"],format='mixed')
 
 # 🎯 Select a game
 
-games_df["match"] = games_df["home_team"] + " vs " + games_df["away_team"] + " (" + games_df["date"].dt.strftime("%d/%m/%Y - %H:%M") + ")"
-
+games_df["match"] = games_df.apply(
+    lambda row: f"{row['home_team']} vs {row['away_team']} ({row['date'].strftime('%d/%m/%Y - %H:%M')})"
+    if pd.notnull(row['date']) else f"{row['home_team']} vs {row['away_team']} (TBD)",
+    axis=1
+)
 # Find the index of the next scheduled game
 future_games = games_df[games_df["date"] > datetime.now()]
 if not future_games.empty:
@@ -58,10 +61,20 @@ else:
 
 selected_match = st.selectbox("Select a game to update:", games_df["match"], index=default_index)
 selected_game = games_df[games_df["match"] == selected_match].iloc[0]
+default_date = selected_game["date"].date() if pd.notnull(selected_game["date"]) else datetime.today().date()
+
+
+if pd.notnull(selected_game["date"]):
+    default_time = selected_game["date"].time()
+else:
+    if selected_game["division"].lower() == "women":
+        default_time = time(19, 30)
+    else:
+        default_time = time(20, 30)
 
 tbd = st.checkbox("To be scheduled",disabled=selected_game["played"],value=selected_game["date"]==None)
-date = st.date_input("Select Date:", value=selected_game["date"].date(),disabled=tbd)
-time = st.time_input("Select Time:", value=selected_game["date"].time(),disabled=tbd)
+date = st.date_input("Select Date:", value=default_date,disabled=tbd)
+time = st.time_input("Select Time:", value=default_time,disabled=tbd)
 venue = st.text_input("Venue:",value=selected_game["location"])
 home_score_val = 0 if pd.isna(selected_game['home_score']) else int(selected_game['home_score'])
 away_score_val = 0 if pd.isna(selected_game['away_score']) else int(selected_game['away_score'])
