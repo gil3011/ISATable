@@ -31,7 +31,7 @@ games_df["date"] = pd.to_datetime(games_df["date"], format='mixed')
 teams = sorted(games_df["home_team"].unique())
 divisions = sorted(games_df["Division"].unique())
 venues = sorted(games_df["location"].unique())
-played_options = ["Scheduled", "Played"]
+played_options = ["Scheduled", "Played","Unscheduled"]
 
 # 🎛️ Filter inputs
 selected_teams = st.multiselect("Select teams:", teams, placeholder="All")
@@ -51,13 +51,23 @@ def filter_schedule(df, teams=None, divisions=None, venues=None, played_status=N
         df = df[df["Division"].isin(divisions)]
     if venues:
         df = df[df["location"].isin(venues)]
+    
     if played_status:
         status_filter = []
-        if "Scheduled" in played_status:
-            status_filter.append(0)
-        if "Played" in played_status:
-            status_filter.append(1)
-        df = df[df["played"].isin(status_filter)]
+        if "Scheduled" in played_status or "Played" in played_status:
+            # Only filter by 'played' if not exclusively looking for 'Unscheduled'
+            if "Scheduled" in played_status:
+                status_filter.append(0)
+            if "Played" in played_status:
+                status_filter.append(1)
+            df = df[df["played"].isin(status_filter)]
+        
+        if "Unscheduled" in played_status:
+            df = pd.concat([
+                df[df["date"].isna()],
+                df[df["date"].isna() & df["played"].isin(status_filter)] if status_filter else df[df["date"].isna()]
+            ]).drop_duplicates()
+
     return df
 
 def display_games(games_df):
@@ -99,8 +109,10 @@ def display_games(games_df):
         game_info = ""
         if is_played:
             game_info = f"Final:<br>{int(row['home_score'])} - {int(row['away_score'])}"
+        elif pd.isna(row['date']):
+            game_info = f"TBS<br>{row['location']}"
         else:
-            game_info = f"{pd.to_datetime(row['date']).strftime('%b %d')}<br>{pd.to_datetime(row['date']).strftime('%I:%M %p')}<br>{row['location']}"
+            game_info = f"{row['date'].strftime('%b %d')}<br>{row['date'].strftime('%I:%M %p')}<br>{row['location']}"
         st.markdown(f"""
         <div class="game-card {card_class}">
             <div class="game-teams">
@@ -108,7 +120,7 @@ def display_games(games_df):
                 <div class="game-score-info">{game_info}</div>
                 <img src="{row['away_logo']}" class="game-logo">
             </div>
-        </div>
+        </div>  
         """, unsafe_allow_html=True)
 
 if st.button("Filter", use_container_width=True):

@@ -1,6 +1,8 @@
+import datetime
 import streamlit as st
 import pandas as pd
 from sqlalchemy import create_engine
+from datetime import datetime
 
 # Streamlit setup
 st.set_page_config(page_title="Israel Softball", page_icon="🏆", layout="wide")
@@ -244,6 +246,6 @@ def display_games_row_dynamic(played_games_df, scheduled_games_df):
     st.page_link(label="Full Schedule",page="pages/Schedule.py")
 
 games = pd.read_sql_query(games_query, engine)
+scheduled_games_df = games[(games["played"] == False) & (games["date"] > datetime.today())].sort_values(by='date')
 played_games_df = games[games["played"]==True].sort_values(by='date')
-scheduled_games_df = games[games["played"]==False].sort_values(by='date')
 display_games_row_dynamic(played_games_df, scheduled_games_df)

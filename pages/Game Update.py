@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 from sqlalchemy import create_engine,text
+import numpy as np
 
 st.set_page_config(page_title="Games Update", page_icon="⚾", layout="wide")
 if "authenticated" not in st.session_state:
@@ -43,18 +44,34 @@ games_df["date"] = pd.to_datetime(games_df["date"],format='mixed')
 # 🎯 Select a game
 
 games_df["match"] = games_df["home_team"] + " vs " + games_df["away_team"] + " (" + games_df["date"].dt.strftime("%d/%m/%Y - %H:%M") + ")"
-selected_match = st.selectbox("Select a game to update:", games_df["match"])
-selected_game = games_df[games_df["match"] == selected_match].iloc[0]
-# 📝 Input scores
-date = st.date_input("Select Date:", value=selected_game["date"].date())
-time = st.time_input("Select Time:", value=selected_game["date"].time())
-venue = st.text_input("Venue:",value=selected_game["location"])
-played = st.checkbox("played",value=selected_game['played'])
-home_score = st.number_input(f"{selected_game['home_team']} score", min_value=0, step=1,value=0 if pd.isna(selected_game['home_score'])  else int(selected_game['home_score']))
-away_score = st.number_input(f"{selected_game['away_team']} score", min_value=0, step=1,value=0 if pd.isna(selected_game['away_score']) else int(selected_game['away_score']))
-import numpy as np
 
-# Convert to native Python types
+# Find the index of the next scheduled game
+future_games = games_df[games_df["date"] > datetime.now()]
+if not future_games.empty:
+    next_game_match = future_games.iloc[0]["match"]
+    default_index = int(games_df[games_df["match"] == next_game_match].index[0])
+else:
+    default_index = 0  # fallback if no future games
+
+
+
+
+selected_match = st.selectbox("Select a game to update:", games_df["match"], index=default_index)
+selected_game = games_df[games_df["match"] == selected_match].iloc[0]
+
+tbd = st.checkbox("To be scheduled",disabled=selected_game["played"],value=selected_game["date"]==None)
+date = st.date_input("Select Date:", value=selected_game["date"].date(),disabled=tbd)
+time = st.time_input("Select Time:", value=selected_game["date"].time(),disabled=tbd)
+venue = st.text_input("Venue:",value=selected_game["location"])
+home_score_val = 0 if pd.isna(selected_game['home_score']) else int(selected_game['home_score'])
+away_score_val = 0 if pd.isna(selected_game['away_score']) else int(selected_game['away_score'])
+
+home_score = st.number_input(f"{selected_game['home_team']} score", min_value=0, step=1, value=home_score_val)
+away_score = st.number_input(f"{selected_game['away_team']} score", min_value=0, step=1, value=away_score_val)
+
+played = (home_score != 0 or away_score != 0)
+st.checkbox("played", value=played)
+
 
 home_score = int(home_score) if isinstance(home_score, (np.integer, np.int64)) else home_score
 away_score = int(away_score) if isinstance(away_score, (np.integer, np.int64)) else away_score
@@ -63,8 +80,11 @@ game_id = int(selected_game["id"]) if isinstance(selected_game["id"], (np.intege
 
 # ✅ Submit button
 if st.button("Submit"):
-    combined_date = datetime(date.year, date.month, date.day, time.hour, time.minute)
-    
+    if not tbd:
+        combined_date = datetime(date.year, date.month, date.day, time.hour, time.minute)
+    else:
+        combined_date = None
+
     if not played:
         home_score = 0
         away_score = 0
@@ -78,6 +98,15 @@ if st.button("Submit"):
             location = :location
         WHERE id = :game_id
     """)
+    st.markdown("### 📝 Update Preview")
+    st.write({
+        "Game ID": game_id,
+        "Date": combined_date,
+        "Venue": venue,
+        "Home Score": home_score,
+        "Away Score": away_score,
+        "Played": played
+    })
 
     try:
         with engine.begin() as connection:  # This auto-commits at the end
