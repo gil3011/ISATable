@@ -52,7 +52,7 @@ games_df["match"] = games_df.apply(
 future_games = games_df[games_df["date"] > datetime.now()]
 if not future_games.empty:
     next_game_match = future_games.iloc[0]["match"]
-    default_index = int(games_df[games_df["match"] == next_game_match].index[0])
+    default_index = int(games_df[games_df["match"] == next_game_match].index[0]) - 1
 else:
     default_index = 0  # fallback if no future games
 
@@ -134,3 +134,18 @@ if st.button("Submit"):
         st.success("🎉 Game result updated successfully!")
     except Exception as e:
         st.error(f"❌ An error occurred: {e}")
+with st.expander(label="Delete Game"):
+    st.warning("Deleting this game will permanently remove all saved progress, settings, and associated data. This action cannot be undone. Are you sure you want to continue?")
+    if st.button("Delete Game",type="secondary",use_container_width=True):
+        remove_query = text("""
+            Delete From games
+            WHERE id = :game_id
+        """)
+        try:
+            with engine.begin() as connection:  
+                connection.execute(remove_query, {
+                    "game_id": game_id
+                })
+            st.success("🎉 Game was removed successfully!")
+        except Exception as e:
+            st.error(f"❌ An error occurred: {e}")
