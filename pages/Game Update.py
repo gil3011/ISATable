@@ -82,9 +82,8 @@ away_score_val = 0 if pd.isna(selected_game['away_score']) else int(selected_gam
 home_score = st.number_input(f"{selected_game['home_team']} score", min_value=0, step=1, value=home_score_val)
 away_score = st.number_input(f"{selected_game['away_team']} score", min_value=0, step=1, value=away_score_val)
 
-played = (home_score != 0 or away_score != 0)
-st.checkbox("played", value=played)
 
+played = st.checkbox("played",value=selected_game['played'])
 
 home_score = int(home_score) if isinstance(home_score, (np.integer, np.int64)) else home_score
 away_score = int(away_score) if isinstance(away_score, (np.integer, np.int64)) else away_score
@@ -97,10 +96,6 @@ if st.button("Submit"):
         combined_date = datetime(date.year, date.month, date.day, time.hour, time.minute)
     else:
         combined_date = None
-
-    if not played:
-        home_score = 0
-        away_score = 0
 
     update_query = text("""
         UPDATE games
@@ -122,7 +117,7 @@ if st.button("Submit"):
     })
 
     try:
-        with engine.begin() as connection:  # This auto-commits at the end
+        with engine.begin() as connection:
             connection.execute(update_query, {
                 "home_score": home_score,
                 "away_score": away_score,

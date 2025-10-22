@@ -3,6 +3,7 @@ import streamlit as st
 import pandas as pd
 from sqlalchemy import create_engine
 from datetime import datetime
+import numpy as np # Import numpy for float conversion
 
 # Streamlit setup
 st.set_page_config(page_title="Israel Softball", page_icon="🏆", layout="wide")
@@ -25,44 +26,70 @@ teams_query = "SELECT id, name, division, logo FROM teams"
 teams_df = pd.read_sql_query(teams_query, engine)
 standings = pd.DataFrame({
         "Team": teams_df["name"],
-        "W": 0,
-        "L": 0,
-        "D": 0,
-        "GP": 0,
+        # CHANGE: Initialize W, L, D, GP as float type to allow for 1.5 losses
+        "W": 0.0,
+        "L": 0.0,
+        "D": 0.0,
+        "GP": 0.0,
         "W%": 0.0,
         "division": teams_df["division"]
     })
 standings["logo"] = teams_df["logo"]
 standings.set_index("Team", inplace=True)
 
-played_query = """
-SELECT ht.name AS home_team, at.name AS away_team, g.home_score, g.away_score
+# Query for ALL games (played or not, for forfeit check)
+games_for_processing_query = """
+SELECT ht.name AS home_team, at.name AS away_team, g.home_score, g.away_score, g.played
 FROM games g
 JOIN teams ht ON g.home_team_id = ht.id
 JOIN teams at ON g.away_team_id = at.id
-WHERE g.played = TRUE
 """
-games_df = pd.read_sql_query(played_query, engine)
-for _, row in games_df.iterrows():
+games_df_all = pd.read_sql_query(games_for_processing_query, engine)
+
+# --- 1. Process Games (Wins, Losses, Draws for played=TRUE) ---
+played_games_df = games_df_all[games_df_all['played'] == True].copy()
+for _, row in played_games_df.iterrows():
     if row['home_score'] > row['away_score']:
-        standings.loc[row['home_team'], 'W'] += 1
-        standings.loc[row['away_team'], 'L'] += 1
+        standings.loc[row['home_team'], 'W'] += 1.0
+        standings.loc[row['away_team'], 'L'] += 1.0
     elif row['away_score'] > row['home_score']:
-        standings.loc[row['away_team'], 'W'] += 1
-        standings.loc[row['home_team'], 'L'] += 1
+        standings.loc[row['away_team'], 'W'] += 1.0
+        standings.loc[row['home_team'], 'L'] += 1.0
     else:
-        standings.loc[row['home_team'], 'D'] += 1
-        standings.loc[row['away_team'], 'D'] += 1        
+        standings.loc[row['home_team'], 'D'] += 1.0
+        standings.loc[row['away_team'], 'D'] += 1.0
 
+# --- 2. Process Forfeits (home_score=7, away_score=0, played=FALSE OR home_score=0, away_score=7, played=FALSE) ---
+# Filter for games matching the forfeit criteria
+forfeit_condition = (
+    (games_df_all['home_score'] == 7) & (games_df_all['away_score'] == 0) & (games_df_all['played'] == False)
+) | (
+    (games_df_all['home_score'] == 0) & (games_df_all['away_score'] == 7) & (games_df_all['played'] == False)
+)
+forfeit_games_df = games_df_all[forfeit_condition].copy()
 
-# Convert to DataFrame
+for _, row in forfeit_games_df.iterrows():
+    # Home team forfeits (Score 0-7) -> Home gets 1.5 L, Away gets 1 W
+    if row['home_score'] == 0 and row['away_score'] == 7:
+        standings.loc[row['home_team'], 'L'] += 1.5
+        standings.loc[row['away_team'], 'W'] += 1.0
+    # Away team forfeits (Score 7-0) -> Away gets 1.5 L, Home gets 1 W
+    elif row['home_score'] == 7 and row['away_score'] == 0:
+        standings.loc[row['away_team'], 'L'] += 1.5
+        standings.loc[row['home_team'], 'W'] += 1.0
+
+# Calculate GP after processing all games and forfeits
 standings["GP"] = standings["W"] + standings["L"] + standings["D"]
+# Recalculate W% using the updated float values
 standings["W%"] = (standings["W"] / standings["GP"]).round(2).fillna(0)
+
+# The rest of the code remains the same as it correctly handles the float W/L/D/GP values
+# ... (Rest of the original code follows)
 
 men_df = standings[standings["division"] == "Men"].sort_values(by=["W%", "W", "L","GP"], ascending=[False, False, True,False])
 women_df = standings[standings["division"] == "Women"].sort_values(by=["W%", "W", "L","GP"], ascending=[False, False, True,False])
 men_df["GB"] = ((men_df.iloc[0]["W"] + men_df.iloc[0]["D"] / 2) - (men_df["W"] + men_df["D"] / 2) + (men_df["L"] + men_df["D"] / 2) - (men_df.iloc[0]["L"] + men_df.iloc[0]["D"] / 2))/2
-women_df["GB"] = ((women_df.iloc[0]["W"] + women_df.iloc[0]["D"] / 2) - (women_df["W"] + women_df["D"] / 2) + (women_df["L"] + women_df["D"] / 2) - (women_df.iloc[0]["L"] + women_df.iloc[0]["D"] / 2))/2
+women_df["GB"] = ((women_df.iloc[0]["W"] + women_df.iloc[0]["D"] / 2) - (women_df["W"] + women_df["D"] / 2) + (women_df["L"] + women_df.iloc[0]["D"] / 2) - (women_df.iloc[0]["L"] + women_df.iloc[0]["D"] / 2))/2
 
 def display_standings(df, division_name):
     st.subheader(f"{division_name} Standings")
@@ -103,7 +130,7 @@ def display_standings(df, division_name):
         </style>
     """, unsafe_allow_html=True)
     
-    with st.container():        
+    with st.container():      
         st.markdown("""
             <div class="table-header">
                 <span class="header-item">Rank</span>
@@ -119,11 +146,12 @@ def display_standings(df, division_name):
         rank = 1
         for _, row in df.iterrows():
             logo = row["logo"]
-            wins = row["W"]
-            losses = row["L"]
-            draws = row["D"]
-            win_percent = row["W%"]
-            games_behind = row["GB"]
+            # Format float numbers to one decimal place for display
+            wins = f"{row['W']:.1f}" if row['W'] % 1 != 0 else f"{int(row['W'])}"
+            losses = f"{row['L']:.1f}" if row['L'] % 1 != 0 else f"{int(row['L'])}"
+            draws = f"{row['D']:.1f}" if row['D'] % 1 != 0 else f"{int(row['D'])}"
+            win_percent = f"{row['W%']:.2f}"
+            games_behind = f"{row['GB']:.1f}" if row['GB'] % 1 != 0 else f"{int(row['GB'])}"
             
             # Table Row for each team
             st.markdown(f"""
@@ -204,7 +232,7 @@ def display_games_row_dynamic(played_games_df, scheduled_games_df):
         next_scheduled = scheduled_games_df.head(4-len(played_games_df))
     elif len(scheduled_games_df)<2:
         last_played = played_games_df.tail(4-len(scheduled_games_df))
-        next_scheduled = scheduled_games_df.head(len(scheduled_games_df))        
+        next_scheduled = scheduled_games_df.head(len(scheduled_games_df))      
     else:
         last_played = played_games_df.tail(2)
         next_scheduled = scheduled_games_df.head(2)
@@ -218,16 +246,26 @@ def display_games_row_dynamic(played_games_df, scheduled_games_df):
         is_played = row.get('played')
         card_class = "played-game" if is_played else "scheduled-game"
         game_info = ""
-        if is_played:
-            game_info = f"Final:<br>{int(row['home_score'])} - {int(row['away_score'])}"
+        # Check for forfeit to display "Forfeit"
+        is_forfeit = (
+            (row.get('home_score') == 7 and row.get('away_score') == 0 and not is_played) or
+            (row.get('home_score') == 0 and row.get('away_score') == 7 and not is_played)
+        )
+        
+        if is_played or is_forfeit:
+            # Display final score or Forfeit status with score
+            status_text = "Forfeit" if is_forfeit else "Final"
+            game_info = f"{status_text}:<br>{int(row['home_score'])} - {int(row['away_score'])}"
         else:
+            # Display scheduled time
             game_info = f"{pd.to_datetime(row['date']).strftime('%b %d')}<br>{pd.to_datetime(row['date']).strftime('%I:%M %p')}"
+            
         with(cols[i]):    
             st.markdown(f"""
                 <div class="game-card {card_class}">
                     <div class="game-teams">
                         <img src="{row['home_logo']}" class="game-logo">
-                        <div>   
+                        <div>  
                             <div class="game-score-info">
                                 {game_info}
                             </div>
@@ -248,4 +286,17 @@ def display_games_row_dynamic(played_games_df, scheduled_games_df):
 games = pd.read_sql_query(games_query, engine)
 scheduled_games_df = games[(games["played"] == False) & (games["date"] > datetime.today())].sort_values(by='date')
 played_games_df = games[games["played"]==True].sort_values(by='date')
+
+# Append forfeit games to played_games_df so they show up as "played" with scores
+forfeit_condition_display = (
+    (games["home_score"] == 7) & (games["away_score"] == 0) & (games["played"] == False)
+) | (
+    (games["home_score"] == 0) & (games["away_score"] == 7) & (games["played"] == False)
+)
+forfeit_games_display = games[forfeit_condition_display].copy()
+played_games_df = pd.concat([played_games_df, forfeit_games_display]).sort_values(by='date')
+
+# Remove forfeit games from scheduled_games_df
+scheduled_games_df = scheduled_games_df[~forfeit_condition_display]
+
 display_games_row_dynamic(played_games_df, scheduled_games_df)
